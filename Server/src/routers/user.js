@@ -4,6 +4,26 @@ const Joi = require('joi')
 const User = require('../models/user')
 const auth = require('../middleware/auth')
 const {v4 : uuidv4} = require('uuid')
+const multer = require('multer')
+const { Storage } = require('@google-cloud/storage');
+
+const uploader = multer({
+    storage: multer.memoryStorage(),
+    limits: {
+        fileSize: 5 * 1024 * 1024, // keep images size < 5 MB
+    },
+});
+
+const GCLOUD_APPLICATION_CREDENTIALS = '../services/fb-key.json'
+const GCLOUD_STORAGE_BUCKET_URL = 'investraitask.appspot.com'
+
+const storage = new Storage({
+    projectId: process.env.GCLOUD_PROJECT_ID,
+    keyFilename: GCLOUD_APPLICATION_CREDENTIALS,
+});
+
+const bucket =
+    storage.bucket(GCLOUD_STORAGE_BUCKET_URL);
 
 router.post('/login', async(req, res) => {
     try {
@@ -134,6 +154,44 @@ router.post('/delete-entry', auth, async (req, res) => {
     }catch(e){
         console.log(e)
         return res.status(400).send({message: e.message})
+    }
+})
+
+router.post('/image', uploader.single('image'), async(req, res, next) => {
+    try{
+        if (!req.file) {
+            return res.status(400).send('No file uploaded.');
+        }
+
+        const blob = bucket.file(req.file.originalname);
+        const blobStream = blob.createWriteStream({
+            metadata: {
+                contentType: req.file.mimetype,
+            },
+        });
+
+        const blobWriter = blob.createWriteStream({
+            metadata: {
+              contentType: req.file.mimetype,
+            },
+          });
+
+        blobWriter.on('error', (err) => next(err));
+
+        blobWriter.on('finish', () => {
+        
+        const publicUrl = `https://firebasestorage.googleapis.com/v0/b/${bucket.name}/o/${encodeURI(blob.name)}?alt=media`;
+
+        res
+            .status(200)
+            .send({ fileName: req.file.originalname, fileLocation: publicUrl });
+        });
+
+        blobWriter.end(req.file.buffer);
+        
+    }catch(e){
+        console.log(e)
+        return res.status(400).send(e.message)
     }
 })
 
