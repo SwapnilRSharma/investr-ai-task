@@ -29,10 +29,6 @@ const userSchema = new mongoose.Schema({
         minlength: 5
     },
     entries: [{
-        id: {
-            type: String,
-            required: true
-        },
         name: {
             type: String,
             required: true,
@@ -42,12 +38,20 @@ const userSchema = new mongoose.Schema({
             type: String,
         },
         brand_image: {
-            type: String
+            type: String,
+            default: ''
         },
         about_product: {
             type: String
         },
-        product_image: String
+        product_image: {
+            type: String,
+            default: ''
+        },
+        product_name: {
+            type: String,
+            default: ''
+        }
     }]
 }, {
     timestamps: true

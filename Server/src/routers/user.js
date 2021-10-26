@@ -37,8 +37,8 @@ router.post('/login', async(req, res) => {
         if (result.error) return res.status(400).send({ error: result.error.details[0].message })
 
         const user = await User.findByCredentials(req.body.email, req.body.password)
-        const token = await user.generateAuthToken()
-        res.send({ user, token })
+        const accessToken = await user.generateAuthToken()
+        return res.send({...user._doc, accessToken})
     } catch (e) {
         console.log(e)
         res.status(400).send({
@@ -91,16 +91,21 @@ router.post('/create-entry', auth, async (req, res) => {
             name: Joi.string().min(2).max(255).required(),
             about_brand: Joi.string().min(5).max(255),
             about_product: Joi.string().min(5).max(1024),
+            brand_image: Joi.string().allow(null, ''),
+            product_image: Joi.string().allow(null, ''),
+            product_name: Joi.string()
         })
 
         const result = schema.validate(req.body)
         if (result.error) return res.status(400).send({ error: result.error.details[0].message })
 
         req.user.entries.push({
-            id: uuidv4(),
             name: req.body.name,
             about_brand: req.body.about_brand,
-            about_product: req.body.about_product
+            about_product: req.body.about_product,
+            brand_image: req.body.brand_image,
+            product_image: req.body.product_image,
+            product_name: req.body.product_name
          })
 
          await req.user.save()
@@ -114,19 +119,26 @@ router.post('/create-entry', auth, async (req, res) => {
 router.post('/update-entry', auth, async (req, res) => {
     try{
         const schema = Joi.object({
+            _id: Joi.string().required(),
             name: Joi.string().min(2).max(255).required(),
             about_brand: Joi.string().min(5).max(255),
             about_product: Joi.string().min(5).max(1024),
+            brand_image: Joi.string().allow(null, ''),
+            product_image: Joi.string().allow(null, ''),
+            product_name: Joi.string()
         })
 
         const result = schema.validate(req.body)
         if (result.error) return res.status(400).send({ error: result.error.details[0].message })
 
         req.user.entries.map((entry)=> {
-            if(entry.id = req.body.id){
+            if(entry._id = req.body._id){
                 entry.name = req.body.name,
                 entry.about_brand = req.body.about_brand,
                 entry.about_product = req.body.about_product
+                entry.brand_image = req.body.brand_image,
+                entry.product_image = req.body.product_image
+                entry.product_name = req.body.product_name
             }
         })
 
@@ -141,13 +153,13 @@ router.post('/update-entry', auth, async (req, res) => {
 router.post('/delete-entry', auth, async (req, res) => {
     try{
         const schema = Joi.object({
-            id: Joi.string().required()
+            _id: Joi.string().required()
         })
 
         const result = schema.validate(req.body)
         if (result.error) return res.status(400).send({ error: result.error.details[0].message })
 
-        req.user.entries = req.user.entries.filter((entry) => entry.id != req.body.id)
+        req.user.entries = req.user.entries.filter((entry) => entry._id != req.body._id)
 
         await req.user.save()
         return res.status(200).send(req.user.entries)
